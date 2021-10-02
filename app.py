@@ -1,100 +1,92 @@
 from __future__ import annotations
-from typing import List
-
+import datetime
+import os, json
+from flask_cors import CORS
 from dataclasses import dataclass
 from flask import Flask, request, jsonify
+from  models import setup_db, Disaster, db_drop_and_create_all, db
 
-@dataclass
-class Disaster:
-    EventId: str
-    EventTitle: str
-    Description: str = None
-    Location: str = None
-    Pictures: List(str) = None
+def create_app():
+    # create and configure the app
+    app = Flask(__name__)
+    app.name = "Save Earth-chan"
+    app.config['JSON_SORT_KEYS'] = False
+    setup_db(app)
+    CORS(app)
+    """ uncomment at the first time running the app """
 
-    def toJson(cls):
-        return {
-            "eventId": cls.EventId,
-            "eventTitle": cls.EventTitle,
-            "description": cls.Description,
-            "location": cls.Location,
-            "pictures": cls.Pictures or None
-        }
+    @dataclass
+    class ErrorResponse:
+        Error: str
+        Api: str
 
-@dataclass
-class DisasterList:
-    Data: List[Disaster]
-    Count: int
+        def toJson(cls):
+            return {
+                "error": cls.Error,
+                "api": cls.Api
+            }
 
-@dataclass
-class ErrorResponse:
-    Error: str
-    Api: str
+    @dataclass
+    class SuccessResponse:
+        Task: str
+        Api: str
 
-    def toJson(cls):
-        return {
-            "error": cls.Error,
-            "api": cls.Api
-        }
+        def toJson(cls):
+            return {
+                "task": cls.Task,
+                "api": cls.Api
+            }
 
-@dataclass
-class SuccessResponse:
-    Task: str
-    Api: str
+    # ROOT API
+    @app.route('/', methods=['GET'])
+    def home():
+        return jsonify({'message': 'SAVE EARTH CHANNN!!'})
 
-    def toJson(cls):
-        return {
-            "task": cls.Task,
-            "api": cls.Api
-        }
+    # GET ALL DATA OR INSERT DATA
+    @app.route("/api/disaster", methods=["POST", "GET"])
+    def addDisaster():
+        if (request.method == "GET"):
+            Data = [ds for ds in Disaster.query.order_by(Disaster.id).all()]
+            return jsonify([objDis.toJson() for objDis in Data])
+            # return json.dumps(Data)
+        elif (request.method == "POST"):
+            try:
+                disaster = request.get_json()
 
-app = Flask("Save Earth-chan")
-app.config['JSON_SORT_KEYS'] = False
+                NewDisaster = Disaster(
+                    EventTitle=disaster.get("title"),
+                    Description=disaster.get("desc"),
+                    Location=disaster.get("loc"),
+                    Pictures=disaster.get("pics")
+                )
+                NewDisaster.insert()
 
-disasterDB = DisasterList(
-    Data = [
-        Disaster("E001", "Weebification", "Manifestation of despaired weeb attempt to fight back society", "Mars", None),
-        Disaster("E002", "Global Horny", "Everthing looks hot", "Global", None)
-    ],
-    Count= 2
-)
+                return jsonify(SuccessResponse(
+                    Task="Disaster has been added!",
+                    Api="addDisaster"
+                ).toJson())
+            except Exception as e:
+                return jsonify(ErrorResponse(
+                    Error=e,
+                    Api="addDisaster"
+                ).toJson())
 
-@app.route("/api/disaster", methods=["GET"])
-def getDisasterAll():
-    return jsonify([ds.toJson() for ds in disasterDB.Data])
+    # GET DATA BY ID
+    @app.route("/api/disaster/<id>", methods=["GET"])
+    def getDisasterById(id):
+        disGet = Disaster.query.get(id)
+        if str(disGet.id) == id:
+            return jsonify(disGet.toJson())
 
-@app.route("/api/disaster", methods=["POST"])
-def addDisaster():
-    try:
-        disaster = request.get_json()
-
-        disasterDB.Data.append(Disaster(
-            EventId='E{:03}'.format(disasterDB.Count+1),
-            EventTitle=disaster.get("title"),
-            Description= disaster.get("desc"),
-            Location= disaster.get("loc"),
-            Pictures= disaster.get("pics")
-        ))
-    except Exception as e:
         return jsonify(ErrorResponse(
-            Error=e,
-            Api="addDisaster"
-        ).toJson())
-    else:
-        disasterDB.Count += 1
-        return jsonify(SuccessResponse(
-            Task="Disaster has been added!",
-            Api="addDisaster"
+            "Not Found!",
+            "getDisasterById:{}".format(id)
         ).toJson())
 
-@app.route("/api/disaster/<id>", methods=["GET"])
-def getDisasterById(id):
-    for d in disasterDB.Data:
-        if d.EventId == id:
-            return jsonify(d.toJson())
-    return jsonify(ErrorResponse(
-        "Not Found!",
-        "getDisasterById:{}".format(id)
-    ).toJson())
+    return app
 
-app.run(debug=True)
+app = create_app()
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT",5000))
+    app.run(host='127.0.0.1',port=port,debug=True, threaded=True)
