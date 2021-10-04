@@ -1,18 +1,30 @@
-# Earth-Chan Need your help :'(
+<h1 align="center">Earth-chan</h1>
+<p align="center"><img align="center" src="./docs/earth-chan.png"></p>
 
-Root API url: https://save-earth-chan-server.herokuapp.com
+<h2 align="center"><a href="https://save-earth-chan-server.herokuapp.com">Root API</a></h2>
 
 # POST Disaster Data
-url: https://save-earth-chan-server.herokuapp.com/api/disaster
+## [POST /api/disaster](https://save-earth-chan-server.herokuapp.com/api/disaster)
 <br> Example:
-![img.png](img.png)
+<img src="./docs/ss_2.png">
 
 # GET All Disaster Data
-url: https://save-earth-chan-server.herokuapp.com/api/disaster
+## [GET /api/disaster](https://save-earth-chan-server.herokuapp.com/api/disaster)
+
 <br> Example:
-![img_1.png](img_1.png)
+<img src="./docs/ss_1.png">
 
 # GET Disaster by id
-url: https://save-earth-chan-server.herokuapp.com/api/disaster/{id}
+## [GET /api/disaster/{id}](https://save-earth-chan-server.herokuapp.com/api/disaster/1)
 <br> Example:
-![img_2.png](img_2.png)
+<img src="./docs/ss_3.png">
+
+# GET DISASTER by Query 
+## [/api/disaster/search](https://save-earth-chan-server.herokuapp.com/api/disaster)
+
+# Additional Parameters
+| Parameters       | Details                  |
+-------------------|---------------------------
+| ``perPage``      | (int) Max item per page  |
+| ``page``         | (int) nth Page           |
+| ``query``        | (string) query field     |

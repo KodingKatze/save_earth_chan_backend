@@ -3,6 +3,7 @@ import datetime
 import os, json
 from flask_cors import CORS
 from dataclasses import dataclass
+from sqlalchemy import or_
 from flask import Flask, request, jsonify
 from  models import setup_db, Disaster, db_drop_and_create_all, db
 
@@ -41,35 +42,52 @@ def create_app():
     @app.route('/', methods=['GET'])
     def home():
         return jsonify({'message': 'SAVE EARTH CHANNN!!'})
+    
+    @app.route('/api')
+    def easterEgg():
+        return jsonify({'message': "Kyan! EARTH-chwan inside!"})
+    # GET ALL DATA
+    @app.route("/api/disaster", methods=["GET"])
+    def getDisasterAll():
+        try:
+            itemPerPage = int(request.args.get("perPage", 10))
+            page = int(request.args.get("page", 1))
 
-    # GET ALL DATA OR INSERT DATA
-    @app.route("/api/disaster", methods=["POST", "GET"])
-    def addDisaster():
-        if (request.method == "GET"):
-            Data = [ds for ds in Disaster.query.order_by(Disaster.id).all()]
+            Data = [ds for ds in Disaster.query
+                                .order_by(Disaster.id)
+                                .limit(itemPerPage)
+                                .offset(page-1)]
             return jsonify([objDis.toJson() for objDis in Data])
-            # return json.dumps(Data)
-        elif (request.method == "POST"):
-            try:
-                disaster = request.get_json()
+        
+        except Exception as e:
+            return jsonify(ErrorResponse(
+                Error=e.args,
+                Api="getDisasterAll"
+            ).toJson())
 
-                NewDisaster = Disaster(
-                    EventTitle=disaster.get("title"),
-                    Description=disaster.get("desc"),
-                    Location=disaster.get("loc"),
-                    Pictures=disaster.get("pics")
-                )
-                NewDisaster.insert()
+    # INSERT DATA
+    @app.route("/api/disaster", methods=["POST"])
+    def addDisaster():
+        try:
+            disaster = request.get_json()
 
-                return jsonify(SuccessResponse(
-                    Task="Disaster has been added!",
-                    Api="addDisaster"
-                ).toJson())
-            except Exception as e:
-                return jsonify(ErrorResponse(
-                    Error=e,
-                    Api="addDisaster"
-                ).toJson())
+            NewDisaster = Disaster(
+                EventTitle=disaster.get("title"),
+                Description=disaster.get("desc"),
+                Location=disaster.get("loc"),
+                Pictures=disaster.get("pics")
+            )
+            NewDisaster.insert()
+
+            return jsonify(SuccessResponse(
+                Task="Disaster has been added!",
+                Api="addDisaster"
+            ).toJson())
+        except Exception as e:
+            return jsonify(ErrorResponse(
+                Error=e.args,
+                Api="addDisaster"
+            ).toJson())
 
     # GET DATA BY ID
     @app.route("/api/disaster/<id>", methods=["GET"])
@@ -83,6 +101,26 @@ def create_app():
             "getDisasterById:{}".format(id)
         ).toJson())
 
+    @app.route("/api/disaster/search", methods=["GET"])
+    def searchTitle():
+        query = request.args.get("query")
+        itemPerPage = int(request.args.get("perPage", 10))
+        page = int(request.args.get("page", 1))
+
+        if not query:
+            return jsonify(ErrorResponse(
+                "Query is empty!",
+                "serachTitle: NONE"
+            ).toJson())
+
+        data = [ds for ds in Disaster.query
+                .filter(or_(
+                    Disaster.EventTitle.ilike(f'%{query}%'),
+                    Disaster.Description.ilike(f'%{query}%'))
+                    )
+                .limit(itemPerPage)
+                .offset(page-1)]
+        return jsonify([objDis.toJson() for objDis in data])
     return app
 
 app = create_app()
