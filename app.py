@@ -1,9 +1,9 @@
 from __future__ import annotations
 import datetime
-from operator import methodcaller
 import os, json
 from flask_cors import CORS
 from dataclasses import dataclass
+from sqlalchemy import or_
 from flask import Flask, request, jsonify
 from  models import setup_db, Disaster, db_drop_and_create_all, db
 
@@ -42,14 +42,17 @@ def create_app():
     @app.route('/', methods=['GET'])
     def home():
         return jsonify({'message': 'SAVE EARTH CHANNN!!'})
-
+    
+    @app.route('/api')
+    def easterEgg():
+        return jsonify({'message': "Kyan! EARTH-chwan inside!"})
     # GET ALL DATA
     @app.route("/api/disaster", methods=["GET"])
     def getDisasterAll():
         try:
-            itemPerPage = int(request.args.get("perPage"))
-            page = int(request.args.get("page"))
-            print(itemPerPage, page)
+            itemPerPage = int(request.args.get("perPage", 10))
+            page = int(request.args.get("page", 1))
+
             Data = [ds for ds in Disaster.query
                                 .order_by(Disaster.id)
                                 .limit(itemPerPage)
@@ -58,7 +61,7 @@ def create_app():
         
         except Exception as e:
             return jsonify(ErrorResponse(
-                Error=e,
+                Error=e.args,
                 Api="getDisasterAll"
             ).toJson())
 
@@ -82,7 +85,7 @@ def create_app():
             ).toJson())
         except Exception as e:
             return jsonify(ErrorResponse(
-                Error=e,
+                Error=e.args,
                 Api="addDisaster"
             ).toJson())
 
@@ -100,8 +103,24 @@ def create_app():
 
     @app.route("/api/disaster/search", methods=["GET"])
     def searchTitle():
-        pass
+        query = request.args.get("query")
+        itemPerPage = int(request.args.get("perPage", 10))
+        page = int(request.args.get("page", 1))
 
+        if not query:
+            return jsonify(ErrorResponse(
+                "Query is empty!",
+                "serachTitle: NONE"
+            ).toJson())
+
+        data = [ds for ds in Disaster.query
+                .filter(or_(
+                    Disaster.EventTitle.ilike(f'%{query}%'),
+                    Disaster.Description.ilike(f'%{query}%'))
+                    )
+                .limit(itemPerPage)
+                .offset(page-1)]
+        return jsonify([objDis.toJson() for objDis in data])
     return app
 
 app = create_app()
