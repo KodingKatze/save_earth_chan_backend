@@ -42,34 +42,49 @@ def create_app():
     def home():
         return jsonify({'message': 'SAVE EARTH CHANNN!!'})
 
-    # GET ALL DATA OR INSERT DATA
-    @app.route("/api/disaster", methods=["POST", "GET"])
-    def addDisaster():
-        if (request.method == "GET"):
-            Data = [ds for ds in Disaster.query.order_by(Disaster.id).all()]
+    # GET ALL DATA
+    @app.route("/api/disaster", methods=["GET"])
+    def getDisasterAll():
+        try:
+            req = request.json
+            page = req.get("page") or 1
+            itemPerPage = req.get("perPage") or 10
+            
+            Data = [ds for ds in Disaster.query
+                                .order_by(Disaster.id)
+                                .limit(itemPerPage)
+                                .offset(page-1)]
             return jsonify([objDis.toJson() for objDis in Data])
-            # return json.dumps(Data)
-        elif (request.method == "POST"):
-            try:
-                disaster = request.get_json()
+        
+        except Exception as e:
+            return jsonify(ErrorResponse(
+                Error=e,
+                Api="getDisasterAll"
+            ).toJson())
 
-                NewDisaster = Disaster(
-                    EventTitle=disaster.get("title"),
-                    Description=disaster.get("desc"),
-                    Location=disaster.get("loc"),
-                    Pictures=disaster.get("pics")
-                )
-                NewDisaster.insert()
+    # INSERT DATA
+    @app.route("/api/disaster", methods=["POST"])
+    def addDisaster():
+        try:
+            disaster = request.get_json()
 
-                return jsonify(SuccessResponse(
-                    Task="Disaster has been added!",
-                    Api="addDisaster"
-                ).toJson())
-            except Exception as e:
-                return jsonify(ErrorResponse(
-                    Error=e,
-                    Api="addDisaster"
-                ).toJson())
+            NewDisaster = Disaster(
+                EventTitle=disaster.get("title"),
+                Description=disaster.get("desc"),
+                Location=disaster.get("loc"),
+                Pictures=disaster.get("pics")
+            )
+            NewDisaster.insert()
+
+            return jsonify(SuccessResponse(
+                Task="Disaster has been added!",
+                Api="addDisaster"
+            ).toJson())
+        except Exception as e:
+            return jsonify(ErrorResponse(
+                Error=e,
+                Api="addDisaster"
+            ).toJson())
 
     # GET DATA BY ID
     @app.route("/api/disaster/<id>", methods=["GET"])
