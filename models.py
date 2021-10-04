@@ -26,7 +26,7 @@ class Disaster(db.Model):
     EventTitle = db.Column(db.String(150), unique=False)
     Description = db.Column(db.String(255), unique=False)
     Location = db.Column(db.String(200), unique=False)
-    Pictures = db.Column(db.String(255), unique=False)
+    Pictures = db.Column(db.ARRAY(String), unique=False)
 
     def toJson(self):
         return {
