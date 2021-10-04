@@ -1,5 +1,6 @@
 from __future__ import annotations
 import datetime
+from operator import methodcaller
 import os, json
 from flask_cors import CORS
 from dataclasses import dataclass
@@ -46,10 +47,9 @@ def create_app():
     @app.route("/api/disaster", methods=["GET"])
     def getDisasterAll():
         try:
-            req = request.json
-            page = req.get("page") or 1
-            itemPerPage = req.get("perPage") or 10
-            
+            itemPerPage = int(request.args.get("perPage"))
+            page = int(request.args.get("page"))
+            print(itemPerPage, page)
             Data = [ds for ds in Disaster.query
                                 .order_by(Disaster.id)
                                 .limit(itemPerPage)
@@ -97,6 +97,10 @@ def create_app():
             "Not Found!",
             "getDisasterById:{}".format(id)
         ).toJson())
+
+    @app.route("/api/disaster/search", methods=["GET"])
+    def searchTitle():
+        pass
 
     return app
 
