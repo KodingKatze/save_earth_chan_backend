@@ -1,5 +1,6 @@
 import os
 from sqlalchemy import Column, String, Integer, create_engine
+from sqlalchemy.dialects import postgresql
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -19,6 +20,10 @@ def db_drop_and_create_all():
     db.drop_all()
     db.create_all()
 
+class QueryType(str):
+    def __str__(self) -> str:
+        return self.lower()
+
 class Disaster(db.Model):
     __tablename__ = 'Disaster'
 
@@ -29,7 +34,7 @@ class Disaster(db.Model):
     Pictures = db.Column(db.ARRAY(String), unique=False)
     Latitude = db.Column(db.String(), unique=False)
     Longitude = db.Column(db.FLOAT(), unique=False)
-    Category = db.Column(db.ARRAY(String), unique=False)
+    Category = db.Column(postgresql.ARRAY(String), unique=False)
 
     def toJson(self):
         return {
