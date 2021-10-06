@@ -78,7 +78,7 @@ def create_app():
                 Pictures=disaster.get("pictures"),
                 Latitude=disaster.get("latitude"),
                 Longitude=disaster.get("longitude"),
-                Category=disaster.get("category")
+                Category=disaster.get("categories")
             )
             NewDisaster.insert()
 

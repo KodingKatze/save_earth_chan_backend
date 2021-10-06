@@ -39,7 +39,8 @@ class Disaster(db.Model):
             'location': self.Location,
             'picture': self.Pictures or None,
             'latitude': self.Latitude,
-            'longtitude': self.Longitude
+            'longtitude': self.Longitude,
+            "categories": self.Category
         }
 
     def insert(self):
