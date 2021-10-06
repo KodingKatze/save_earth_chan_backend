@@ -29,7 +29,7 @@ class Disaster(db.Model):
     Pictures = db.Column(db.ARRAY(String), unique=False)
     Latitude = db.Column(db.String(), unique=False)
     Longitude = db.Column(db.FLOAT(), unique=False)
-    Category = db.Column(db.TEXT, unique=False)
+    Category = db.Column(db.TEXT(), unique=False)
 
     def toJson(self):
         return {
