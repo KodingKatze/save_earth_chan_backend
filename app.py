@@ -16,8 +16,6 @@ def create_app():
     CORS(app)
     """ uncomment at the first time running the app """
 
-    db_drop_and_create_all()
-
     @dataclass
     class ErrorResponse:
         Error: str
