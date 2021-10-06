@@ -4,8 +4,9 @@ import os, json
 from flask_cors import CORS
 from dataclasses import dataclass
 from sqlalchemy import or_
-from flask import Flask, request, jsonify
-from  models import setup_db, Disaster, db_drop_and_create_all, db
+from flask import Flask, request, jsonify, sessions
+from sqlalchemy.sql.expression import select
+from models import setup_db, Disaster, QueryType, db_drop_and_create_all, db
 
 def create_app():
     # create and configure the app
@@ -69,7 +70,7 @@ def create_app():
     @app.route("/api/disaster", methods=["POST"])
     def addDisaster():
         try:
-            disaster = request.get_json()
+            disaster: dict = request.get_json()
 
             NewDisaster = Disaster(
                 EventTitle=disaster.get("eventTitle"),
@@ -78,7 +79,7 @@ def create_app():
                 Pictures=disaster.get("picture"),
                 Latitude=disaster.get("latitude"),
                 Longitude=disaster.get("longitude"),
-                Category=disaster.get("category")
+                Category=list(tag.lower() for tag in disaster["category"]) if disaster["category"] else None
             )
             NewDisaster.insert()
 
@@ -106,22 +107,18 @@ def create_app():
 
     @app.route("/api/disaster/search", methods=["GET"])
     def searchTitle():
-        query = request.args.get("query")
-        category = request.args.get("category")
-        itemPerPage = int(request.args.get("perPage", 10))
-        page = int(request.args.get("page", 1))
-
-        # if not query:
-        #     return jsonify(ErrorResponse(
-        #         "Query is empty!",
-        #         "serachTitle: NONE"
-        #     ).toJson())
+        query = request.args.get("query", type=QueryType)
+        category = request.args.get("category", type=QueryType)
+        
+        itemPerPage = request.args.get("perPage", 10, type=int)
+        page = request.args.get("page", 1, type=int)
 
         data = [ds for ds in Disaster.query
-                .filter(or_(
-                    or_(Disaster.EventTitle.ilike(f'%{query}%'),Disaster.Description.ilike(f'%{query}%')),
-                    Disaster.Category.ilike(f'%{category}%')
-                ))
+                .filter(
+                    Disaster.EventTitle.ilike(f'%{query}%') | 
+                    Disaster.Description.ilike(f'%{query}%') | 
+                    Disaster.Category.contains([category])
+                    )
                 .limit(itemPerPage)
                 .offset(page-1)]
         return jsonify([objDis.toJson() for objDis in data])
