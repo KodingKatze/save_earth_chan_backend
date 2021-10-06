@@ -75,10 +75,10 @@ def create_app():
                 EventTitle=disaster.get("eventTitle"),
                 Description=disaster.get("description"),
                 Location=disaster.get("location"),
-                Pictures=disaster.get("pictures"),
+                Pictures=disaster.get("picture"),
                 Latitude=disaster.get("latitude"),
                 Longitude=disaster.get("longitude"),
-                Category=disaster.get("categories")
+                Category=disaster.get("category")
             )
             NewDisaster.insert()
 
@@ -107,20 +107,21 @@ def create_app():
     @app.route("/api/disaster/search", methods=["GET"])
     def searchTitle():
         query = request.args.get("query")
+        category = request.args.get("category")
         itemPerPage = int(request.args.get("perPage", 10))
         page = int(request.args.get("page", 1))
 
-        if not query:
-            return jsonify(ErrorResponse(
-                "Query is empty!",
-                "serachTitle: NONE"
-            ).toJson())
+        # if not query:
+        #     return jsonify(ErrorResponse(
+        #         "Query is empty!",
+        #         "serachTitle: NONE"
+        #     ).toJson())
 
         data = [ds for ds in Disaster.query
                 .filter(or_(
-                    Disaster.EventTitle.ilike(f'%{query}%'),
-                    Disaster.Description.ilike(f'%{query}%'))
-                    )
+                    or_(Disaster.EventTitle.ilike(f'%{query}%'),Disaster.Description.ilike(f'%{query}%')),
+                    Disaster.Category.ilike(f'%{category}%')
+                ))
                 .limit(itemPerPage)
                 .offset(page-1)]
         return jsonify([objDis.toJson() for objDis in data])
