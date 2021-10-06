@@ -16,6 +16,8 @@ def create_app():
     CORS(app)
     """ uncomment at the first time running the app """
 
+    db_drop_and_create_all()
+
     @dataclass
     class ErrorResponse:
         Error: str
@@ -72,10 +74,13 @@ def create_app():
             disaster = request.get_json()
 
             NewDisaster = Disaster(
-                EventTitle=disaster.get("title"),
-                Description=disaster.get("desc"),
-                Location=disaster.get("loc"),
-                Pictures=disaster.get("pics")
+                EventTitle=disaster.get("eventTitle"),
+                Description=disaster.get("description"),
+                Location=disaster.get("location"),
+                Pictures=disaster.get("pictures"),
+                Latitude=disaster.get("latitude"),
+                Longitude=disaster.get("longitude"),
+                Category=disaster.get("category")
             )
             NewDisaster.insert()
 
