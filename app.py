@@ -1,6 +1,7 @@
 from __future__ import annotations
-import datetime
-import os, json
+import json
+import requests
+from datetime import datetime
 from flask_cors import CORS
 from dataclasses import dataclass
 from sqlalchemy import or_
@@ -70,7 +71,15 @@ def create_app():
    @app.route("/api/disaster", methods=["POST"])
    def addDisaster():
       try:
-         disaster: dict = request.get_json()
+         disaster = json.loads(request.form.get("data"))
+         pics = request.files.get("pictures")
+         if pics: 
+            res = uploadImage(pics.stream)
+            if not res:
+               raise AttributeError("pictures failed to be uploaded")
+            disaster["picture"] = res
+         else:
+            disaster["picture"] = None
 
          NewDisaster = Disaster(
                EventTitle=disaster.get("eventTitle"),
@@ -81,14 +90,14 @@ def create_app():
                Longitude=disaster.get("longitude"),
                Category=list(tag.lower() for tag in disaster["category"]) if disaster["category"] else None
          )
-         print(NewDisaster)
-         # NewDisaster.insert()
+         NewDisaster.insert()
 
          return jsonify(SuccessResponse(
                Task="Disaster has been added!",
                Api="addDisaster"
          ).toJson())
       except Exception as e:
+         print(e)
          return jsonify(ErrorResponse(
                Error=e.args,
                Api="addDisaster"
@@ -123,5 +132,20 @@ def create_app():
                .limit(itemPerPage)
                .offset(page-1)]
       return jsonify([objDis.toJson() for objDis in data])
-      
+
+
+   def uploadImage(data) -> str:
+      res = requests.post("https://api.imgbb.com/1/upload", params={
+         'key': '00a1aeca97124c2ddb0ace6f0bc4fffc',
+      }, files={
+         'image': data.read()
+      }).json()
+
+      if res.get("status") == 200:
+         return res.get("data").get("url")
+      else:
+         return None
+
+   return app
+
 app = create_app()
