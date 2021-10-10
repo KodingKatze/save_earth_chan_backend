@@ -73,12 +73,16 @@ def create_app():
    def addDisaster():
       try:
          disaster = json.loads(request.form.get("data"))
-         pics = request.files.get("pictures")
+         pics = request.files
+         imageList = []
+         
          if pics: 
-            res = uploadImage(pics.stream)
-            if not res:
-               raise AttributeError("pictures failed to be uploaded")
-            disaster["picture"] = res
+            for _, img in pics.items():
+               res = uploadImage(img.stream)
+               if res:
+                  imageList.append(res)
+            if len(imageList): 
+               disaster["picture"] = imageList
          else:
             disaster["picture"] = None
 
@@ -135,7 +139,7 @@ def create_app():
       return jsonify([objDis.toJson() for objDis in data])
 
    @app.route("/api/disaster/nearMe", methods=["GET"])
-   def searchTitle():
+   def searchNearMe():
       latitude = request.args.get("latitude", type=float)
       longitude = request.args.get("longitude", type=float)
 
