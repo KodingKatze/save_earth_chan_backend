@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from operator import methodcaller
 import requests
 from datetime import datetime
 from flask_cors import CORS
@@ -133,6 +134,21 @@ def create_app():
                .offset(page-1)]
       return jsonify([objDis.toJson() for objDis in data])
 
+   @app.route("/api/disaster/nearMe", methods=["GET"])
+   def searchTitle():
+      latitude = request.args.get("latitude", type=float)
+      longitude = request.args.get("longitude", type=float)
+
+      page = request.args.get("page", 1, type=int)
+      itemPerPage = request.args.get("perPage", type=int)
+      data = [ds for ds in Disaster.query
+               .filter(
+                  absoulute(Disaster.Latitude - latitude) <= 1.0 & 
+                  absoulute(Disaster.Longitude - longitude) <= 1.0
+               )
+               .limit(itemPerPage)
+               .offset(page-1)]
+      return jsonify([objDis.toJson() for objDis in data])
 
    def uploadImage(data) -> str:
       res = requests.post("https://api.imgbb.com/1/upload", params={
@@ -145,6 +161,9 @@ def create_app():
          return res.get("data").get("url")
       else:
          return None
+
+   def absoulute(val):
+      return val if val > 0 else val*-1
 
    return app
 
