@@ -32,7 +32,7 @@ class Disaster(db.Model):
     Description = db.Column(db.String(255), unique=False)
     Location = db.Column(db.String(200), unique=False)
     Pictures = db.Column(db.ARRAY(String), unique=False)
-    Latitude = db.Column(db.String(), unique=False)
+    Latitude = db.Column(db.FLOAT(), unique=False)
     Longitude = db.Column(db.FLOAT(), unique=False)
     Category = db.Column(postgresql.ARRAY(String), unique=False)
 
