@@ -1,11 +1,10 @@
 from __future__ import annotations
 import json
-from operator import methodcaller
 import requests
 from datetime import datetime
 from flask_cors import CORS
 from dataclasses import dataclass
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from flask import Flask, request, jsonify, sessions
 from sqlalchemy.sql.expression import select
 from models import setup_db, Disaster, QueryType, db_drop_and_create_all, db
@@ -72,7 +71,7 @@ def create_app():
    @app.route("/api/disaster", methods=["POST"])
    def addDisaster():
       try:
-         disaster = json.loads(request.form.get("data"))
+         disaster: dict = json.loads(request.form.get("data"))
          pics = request.files
          imageList = []
          
@@ -91,8 +90,8 @@ def create_app():
                Description=disaster.get("description"),
                Location=disaster.get("location"),
                Pictures=disaster.get("picture"),
-               Latitude=disaster.get("latitude"),
-               Longitude=disaster.get("longitude"),
+               Latitude=float(disaster.get("latitude")),
+               Longitude=float(disaster.get("longitude")),
                Category=list(tag.lower() for tag in disaster["category"]) if disaster["category"] else None
          )
          NewDisaster.insert()
@@ -147,7 +146,7 @@ def create_app():
       itemPerPage = request.args.get("perPage", type=int)
       data = [ds for ds in Disaster.query
                .filter(
-                  absoulute(Disaster.Latitude - latitude) <= 1.0 & 
+                  absoulute(Disaster.Latitude - latitude) <= 1.0 &
                   absoulute(Disaster.Longitude - longitude) <= 1.0
                )
                .limit(itemPerPage)
@@ -166,7 +165,7 @@ def create_app():
       else:
          return None
 
-   def absoulute(val):
+   def absoulute(val) -> int:
       return val if val > 0 else val*-1
 
    return app

@@ -43,8 +43,8 @@ class Disaster(db.Model):
             'description': self.Description,
             'location': self.Location,
             'picture': self.Pictures or None,
-            'latitude': self.Latitude,
-            'longtitude': self.Longitude,
+            'latitude': str(self.Latitude),
+            'longtitude': str(self.Longitude),
             "categories": self.Category
         }
 
