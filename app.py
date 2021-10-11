@@ -1,100 +1,188 @@
 from __future__ import annotations
-from typing import List
-
+import json
+import requests
+from datetime import datetime
+from flask_cors import CORS
 from dataclasses import dataclass
-from flask import Flask, request, jsonify
+from sqlalchemy import or_, and_
+from flask import Flask, request, jsonify, sessions
+from sqlalchemy.sql.expression import select
+from models import setup_db, Disaster, QueryType, db_drop_and_create_all, db
 
-@dataclass
-class Disaster:
-    EventId: str
-    EventTitle: str
-    Description: str = None
-    Location: str = None
-    Pictures: List(str) = None
+def create_app():
+   # create and configure the app
+   app = Flask(__name__)
+   app.name = "Save Earth-chan"
+   app.config['JSON_SORT_KEYS'] = False
+   setup_db(app)
+   CORS(app)
+   """ uncomment at the first time running the app """
 
-    def toJson(cls):
-        return {
-            "eventId": cls.EventId,
-            "eventTitle": cls.EventTitle,
-            "description": cls.Description,
-            "location": cls.Location,
-            "pictures": cls.Pictures or None
-        }
+   @dataclass
+   class ErrorResponse:
+      Error: str
+      Api: str
 
-@dataclass
-class DisasterList:
-    Data: List[Disaster]
-    Count: int
+      def toJson(cls):
+         return {
+               "error": cls.Error,
+               "api": cls.Api
+         }
 
-@dataclass
-class ErrorResponse:
-    Error: str
-    Api: str
+   @dataclass
+   class SuccessResponse:
+      Task: str
+      Api: str
 
-    def toJson(cls):
-        return {
-            "error": cls.Error,
-            "api": cls.Api
-        }
+      def toJson(cls):
+         return {
+               "task": cls.Task,
+               "api": cls.Api
+         }
 
-@dataclass
-class SuccessResponse:
-    Task: str
-    Api: str
+   # ROOT API
+   @app.route('/', methods=['GET'])
+   def home():
+      return jsonify({'message': 'SAVE EARTH CHANNN!!'})
+   
+   @app.route('/api')
+   def easterEgg():
+      return jsonify({'message': "Kyan! EARTH-chwan inside!"})
+   # GET ALL DATA
+   @app.route("/api/disaster", methods=["GET"])
+   def getDisasterAll():
+      try:
+         itemPerPage = int(request.args.get("perPage", 10))
+         page = int(request.args.get("page", 1))
 
-    def toJson(cls):
-        return {
-            "task": cls.Task,
-            "api": cls.Api
-        }
+         Data = [ds for ds in Disaster.query
+                              .order_by(Disaster.id)
+                              .limit(itemPerPage)
+                              .offset(page-1)]
+         return jsonify([objDis.toJson() for objDis in Data])
+      
+      except Exception as e:
+         return jsonify(ErrorResponse(
+               Error=e.args,
+               Api="getDisasterAll"
+         ).toJson()), 400
 
-app = Flask("Save Earth-chan")
-app.config['JSON_SORT_KEYS'] = False
+   # INSERT DATA
+   @app.route("/api/disaster", methods=["POST"])
+   def addDisaster():
+      try:
+         disaster: dict = json.loads(request.form.get("data"))
+         pics = request.files
+         imageList = []
+         
+         if pics: 
+            for _, img in pics.items():
+               res = uploadImage(img.stream)
+               if res:
+                  imageList.append(res)
+            if len(imageList): 
+               disaster["picture"] = imageList
+         else:
+            disaster["picture"] = None
 
-disasterDB = DisasterList(
-    Data = [
-        Disaster("E001", "Weebification", "Manifestation of despaired weeb attempt to fight back society", "Mars", None),
-        Disaster("E002", "Global Horny", "Everthing looks hot", "Global", None)
-    ],
-    Count= 2
-)
+         NewDisaster = Disaster(
+               EventTitle=disaster.get("eventTitle"),
+               Description=disaster.get("description"),
+               Location=disaster.get("location"),
+               Pictures=disaster.get("picture"),
+               Latitude=float(disaster.get("latitude")),
+               Longitude=float(disaster.get("longitude")),
+               Category=list(tag.lower() for tag in disaster["category"]) if disaster["category"] else None
+         )
+         NewDisaster.insert()
 
-@app.route("/api/disaster", methods=["GET"])
-def getDisasterAll():
-    return jsonify([ds.toJson() for ds in disasterDB.Data])
+         return jsonify(SuccessResponse(
+               Task="Disaster has been added!",
+               Api="addDisaster"
+         ).toJson())
+      except Exception as e:
+         print(e)
+         return jsonify(ErrorResponse(
+               Error=e.args,
+               Api="addDisaster"
+         ).toJson()), 400
 
-@app.route("/api/disaster", methods=["POST"])
-def addDisaster():
-    try:
-        disaster = request.get_json()
+   # GET DATA BY ID
+   @app.route("/api/disaster/<id>", methods=["GET"])
+   def getDisasterById(id):
+      try:
+         disGet = Disaster.query.get(id)
+         if str(disGet.id) == id:
+            return jsonify(disGet.toJson())
+      except Exception as e:
+         return jsonify(ErrorResponse(
+            "Not Found!",
+            "getDisasterById:{}".format(id)
+         ).toJson()), 400
 
-        disasterDB.Data.append(Disaster(
-            EventId='E{:03}'.format(disasterDB.Count+1),
-            EventTitle=disaster.get("title"),
-            Description= disaster.get("desc"),
-            Location= disaster.get("loc"),
-            Pictures= disaster.get("pics")
-        ))
-    except Exception as e:
-        return jsonify(ErrorResponse(
-            Error=e,
-            Api="addDisaster"
-        ).toJson())
-    else:
-        disasterDB.Count += 1
-        return jsonify(SuccessResponse(
-            Task="Disaster has been added!",
-            Api="addDisaster"
-        ).toJson())
+   @app.route("/api/disaster/search", methods=["GET"])
+   def searchTitle():
+      try:
+         query = request.args.get("query", type=QueryType)
+         category = request.args.get("category", type=QueryType)
+         
+         itemPerPage = request.args.get("perPage", 10, type=int)
+         page = request.args.get("page", 1, type=int)
 
-@app.route("/api/disaster/<id>", methods=["GET"])
-def getDisasterById(id):
-    for d in disasterDB.Data:
-        if d.EventId == id:
-            return jsonify(d.toJson())
-    return jsonify(ErrorResponse(
-        "Not Found!",
-        "getDisasterById:{}".format(id)
-    ).toJson())
+         data = [ds for ds in Disaster.query
+                  .filter(
+                     Disaster.EventTitle.ilike(f'%{query}%') | 
+                     Disaster.Description.ilike(f'%{query}%') | 
+                     Disaster.Category.contains([category])
+                     )
+                  .limit(itemPerPage)
+                  .offset(page-1)]
+         return jsonify([objDis.toJson() for objDis in data])
+      
+      except Exception as e:
+         return jsonify(ErrorResponse(
+            "Not Found!",
+            "getDisasterById:{}".format(id)
+         ).toJson()), 400
+   
+   @app.route("/api/disaster/nearMe", methods=["GET"])
+   def searchNearMe():
+      try:
+         latitude = request.args.get("latitude", type=float)
+         longitude = request.args.get("longitude", type=float)
 
-app.run(debug=True)
+         page = request.args.get("page", 1, type=int)
+         itemPerPage = request.args.get("perPage", type=int)
+         data = [ds for ds in Disaster.query
+                  .filter(
+                     absoulute(Disaster.Latitude - latitude) <= 1.0 &
+                     absoulute(Disaster.Longitude - longitude) <= 1.0
+                  )
+                  .limit(itemPerPage)
+                  .offset(page-1)]
+         return jsonify([objDis.toJson() for objDis in data])
+
+      except Exception as e:
+         return jsonify(ErrorResponse(
+            "Not Found!",
+            "getDisasterById:{}".format(id)
+         ).toJson()), 400
+
+   def uploadImage(data) -> str:
+      res = requests.post("https://api.imgbb.com/1/upload", params={
+         'key': '00a1aeca97124c2ddb0ace6f0bc4fffc',
+      }, files={
+         'image': data.read()
+      }).json()
+
+      if res.get("status") == 200:
+         return res.get("data").get("url")
+      else:
+         return None
+
+   def absoulute(val) -> int:
+      return val if val > 0 else val*-1
+
+   return app
+
+app = create_app()
