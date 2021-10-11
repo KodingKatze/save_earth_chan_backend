@@ -65,7 +65,7 @@ def create_app():
          return jsonify(ErrorResponse(
                Error=e.args,
                Api="getDisasterAll"
-         ).toJson())
+         ).toJson()), 400
 
    # INSERT DATA
    @app.route("/api/disaster", methods=["POST"])
@@ -105,53 +105,68 @@ def create_app():
          return jsonify(ErrorResponse(
                Error=e.args,
                Api="addDisaster"
-         ).toJson())
+         ).toJson()), 400
 
    # GET DATA BY ID
    @app.route("/api/disaster/<id>", methods=["GET"])
    def getDisasterById(id):
-      disGet = Disaster.query.get(id)
-      if str(disGet.id) == id:
-         return jsonify(disGet.toJson())
-
-      return jsonify(ErrorResponse(
-         "Not Found!",
-         "getDisasterById:{}".format(id)
-      ).toJson())
+      try:
+         disGet = Disaster.query.get(id)
+         if str(disGet.id) == id:
+            return jsonify(disGet.toJson())
+      except Exception as e:
+         return jsonify(ErrorResponse(
+            "Not Found!",
+            "getDisasterById:{}".format(id)
+         ).toJson()), 400
 
    @app.route("/api/disaster/search", methods=["GET"])
    def searchTitle():
-      query = request.args.get("query", type=QueryType)
-      category = request.args.get("category", type=QueryType)
+      try:
+         query = request.args.get("query", type=QueryType)
+         category = request.args.get("category", type=QueryType)
+         
+         itemPerPage = request.args.get("perPage", 10, type=int)
+         page = request.args.get("page", 1, type=int)
+
+         data = [ds for ds in Disaster.query
+                  .filter(
+                     Disaster.EventTitle.ilike(f'%{query}%') | 
+                     Disaster.Description.ilike(f'%{query}%') | 
+                     Disaster.Category.contains([category])
+                     )
+                  .limit(itemPerPage)
+                  .offset(page-1)]
+         return jsonify([objDis.toJson() for objDis in data])
       
-      itemPerPage = request.args.get("perPage", 10, type=int)
-      page = request.args.get("page", 1, type=int)
-
-      data = [ds for ds in Disaster.query
-               .filter(
-                  Disaster.EventTitle.ilike(f'%{query}%') | 
-                  Disaster.Description.ilike(f'%{query}%') | 
-                  Disaster.Category.contains([category])
-                  )
-               .limit(itemPerPage)
-               .offset(page-1)]
-      return jsonify([objDis.toJson() for objDis in data])
-
+      except Exception as e:
+         return jsonify(ErrorResponse(
+            "Not Found!",
+            "getDisasterById:{}".format(id)
+         ).toJson()), 400
+   
    @app.route("/api/disaster/nearMe", methods=["GET"])
    def searchNearMe():
-      latitude = request.args.get("latitude", type=float)
-      longitude = request.args.get("longitude", type=float)
+      try:
+         latitude = request.args.get("latitude", type=float)
+         longitude = request.args.get("longitude", type=float)
 
-      page = request.args.get("page", 1, type=int)
-      itemPerPage = request.args.get("perPage", type=int)
-      data = [ds for ds in Disaster.query
-               .filter(
-                  absoulute(Disaster.Latitude - latitude) <= 1.0 &
-                  absoulute(Disaster.Longitude - longitude) <= 1.0
-               )
-               .limit(itemPerPage)
-               .offset(page-1)]
-      return jsonify([objDis.toJson() for objDis in data])
+         page = request.args.get("page", 1, type=int)
+         itemPerPage = request.args.get("perPage", type=int)
+         data = [ds for ds in Disaster.query
+                  .filter(
+                     absoulute(Disaster.Latitude - latitude) <= 1.0 &
+                     absoulute(Disaster.Longitude - longitude) <= 1.0
+                  )
+                  .limit(itemPerPage)
+                  .offset(page-1)]
+         return jsonify([objDis.toJson() for objDis in data])
+
+      except Exception as e:
+         return jsonify(ErrorResponse(
+            "Not Found!",
+            "getDisasterById:{}".format(id)
+         ).toJson()), 400
 
    def uploadImage(data) -> str:
       res = requests.post("https://api.imgbb.com/1/upload", params={
